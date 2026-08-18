@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useOutletContext } from "react-router-dom";
 import {
   Activity,
@@ -30,47 +30,114 @@ function Dashboard() {
   const [alerts, setAlerts] = useState(null);
 
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
 
-  async function loadDashboard() {
-    try {
-      setLoading(true);
-      setError("");
+  const loadDashboard = useCallback(
+    async (isRefresh = false) => {
+      if (!location) return;
 
-      const [
-        environmentData,
-        forecastData,
-        hotspotData,
-        predictionData,
-        alertData,
-      ] = await Promise.all([
-        getEnvironment(location),
-        getForecast(location, 24),
-        getHotspots(location),
-        getPrediction(location),
-        getLiveAlerts(location),
-      ]);
+      try {
+        if (isRefresh) {
+          setRefreshing(true);
+        } else {
+          setLoading(true);
+        }
 
-      setEnvironment(environmentData);
-      setForecast(forecastData);
-      setHotspots(hotspotData);
-      setPrediction(predictionData);
-      setAlerts(alertData);
-    } catch (err) {
-      setError(
-        err?.message ||
-          "Failed to load dashboard data."
-      );
-    } finally {
-      setLoading(false);
-    }
-  }
+        setError("");
+
+        /*
+         * Use allSettled instead of Promise.all.
+         *
+         * One unavailable service should NOT destroy
+         * the entire dashboard.
+         */
+        const results = await Promise.allSettled([
+          getEnvironment(location),
+          getForecast(location, 24),
+          getHotspots(location),
+          getPrediction(location),
+          getLiveAlerts(location),
+        ]);
+
+        const [
+          environmentResult,
+          forecastResult,
+          hotspotResult,
+          predictionResult,
+          alertResult,
+        ] = results;
+
+        let failedServices = [];
+
+        if (environmentResult.status === "fulfilled") {
+          setEnvironment(environmentResult.value);
+        } else {
+          failedServices.push("environment");
+          setEnvironment(null);
+        }
+
+        if (forecastResult.status === "fulfilled") {
+          setForecast(forecastResult.value);
+        } else {
+          failedServices.push("forecast");
+          setForecast(null);
+        }
+
+        if (hotspotResult.status === "fulfilled") {
+          setHotspots(hotspotResult.value);
+        } else {
+          failedServices.push("hotspots");
+          setHotspots(null);
+        }
+
+        if (predictionResult.status === "fulfilled") {
+          setPrediction(predictionResult.value);
+        } else {
+          failedServices.push("prediction");
+          setPrediction(null);
+        }
+
+        if (alertResult.status === "fulfilled") {
+          setAlerts(alertResult.value);
+        } else {
+          failedServices.push("alerts");
+          setAlerts(null);
+        }
+
+        /*
+         * Only show a full-page error when the core
+         * environment service fails.
+         */
+        if (
+          environmentResult.status === "rejected"
+        ) {
+          setError(
+            environmentResult.reason?.message ||
+              "Unable to load current environmental data."
+          );
+        } else if (failedServices.length > 0) {
+          console.warn(
+            "Some dashboard services failed:",
+            failedServices
+          );
+        }
+      } catch (err) {
+        setError(
+          err?.message ||
+            "Failed to load dashboard data."
+        );
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
+      }
+    },
+    [location]
+  );
 
   useEffect(() => {
-    if (location) {
-      loadDashboard();
-    }
-  }, [location]);
+    loadDashboard();
+  }, [loadDashboard]);
 
   if (loading) {
     return (
@@ -92,7 +159,7 @@ function Dashboard() {
 
   if (error) {
     return (
-      <div className="mx-auto w-full max-w-[1600px] px-0">
+      <div className="mx-auto w-full max-w-[1600px]">
         <div className="rounded-2xl border border-[#FF5A5F]/20 bg-[#101B20] p-5 sm:p-6">
           <div className="flex items-start gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#FF5A5F]/10 text-[#FF5A5F]">
@@ -110,7 +177,7 @@ function Dashboard() {
 
               <button
                 type="button"
-                onClick={loadDashboard}
+                onClick={() => loadDashboard()}
                 className="mt-4 inline-flex items-center gap-2 rounded-lg border border-white/10 px-4 py-2 text-xs font-medium text-[#F5F7F8] transition-colors hover:bg-white/[0.05]"
               >
                 <RefreshCw size={14} />
@@ -123,7 +190,11 @@ function Dashboard() {
     );
   }
 
-  const activeAlerts = alerts?.alerts || [];
+  const activeAlerts = Array.isArray(
+    alerts?.alerts
+  )
+    ? alerts.alerts
+    : [];
 
   return (
     <div className="mx-auto w-full max-w-[1600px] space-y-6 sm:space-y-8">
@@ -154,18 +225,40 @@ function Dashboard() {
             </p>
           </div>
 
-          <div className="flex shrink-0 items-center gap-2 text-xs text-[#64757d]">
-            <span className="relative flex h-2.5 w-2.5">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#35D07F] opacity-40" />
-              <span className="relative h-2.5 w-2.5 rounded-full bg-[#35D07F]" />
-            </span>
+          <div className="flex flex-wrap items-center gap-3 text-xs text-[#64757d]">
+            <div className="flex items-center gap-2">
+              <span className="relative flex h-2.5 w-2.5">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#35D07F] opacity-40" />
+                <span className="relative h-2.5 w-2.5 rounded-full bg-[#35D07F]" />
+              </span>
 
-            Live environmental data
+              Live environmental data
+            </div>
+
+            <button
+              type="button"
+              onClick={() => loadDashboard(true)}
+              disabled={refreshing}
+              className="inline-flex h-9 items-center gap-2 rounded-lg border border-white/10 bg-white/[0.025] px-3 text-[#8A9AA3] transition-colors hover:border-white/20 hover:bg-white/[0.05] hover:text-[#F5F7F8] disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <RefreshCw
+                size={14}
+                className={
+                  refreshing
+                    ? "animate-spin"
+                    : ""
+                }
+              />
+
+              <span className="hidden sm:inline">
+                Refresh
+              </span>
+            </button>
           </div>
         </div>
       </section>
 
-      {/* AQI + Upcoming Risk */}
+      {/* AQI + Risk */}
       <div className="grid min-w-0 gap-5 xl:grid-cols-[1.15fr_0.85fr]">
         <AQIOverview data={environment} />
 
@@ -232,9 +325,11 @@ function Dashboard() {
                         {alert.title}
                       </p>
 
-                      <span className="w-fit shrink-0 rounded-full bg-[#FFB547]/10 px-2.5 py-1 text-[9px] font-medium uppercase tracking-wider text-[#FFB547]">
-                        {alert.severity}
-                      </span>
+                      {alert.severity && (
+                        <span className="w-fit shrink-0 rounded-full bg-[#FFB547]/10 px-2.5 py-1 text-[9px] font-medium uppercase tracking-wider text-[#FFB547]">
+                          {alert.severity}
+                        </span>
+                      )}
                     </div>
 
                     <p className="mt-2 text-sm leading-6 text-[#8A9AA3]">
@@ -246,6 +341,16 @@ function Dashboard() {
                         Pollutant:{" "}
                         <span className="text-[#8A9AA3]">
                           {alert.pollutant}
+                        </span>
+                      </p>
+                    )}
+
+                    {alert.value !== undefined && (
+                      <p className="mt-1 text-[10px] text-[#64757d]">
+                        Reading:{" "}
+                        <span className="text-[#8A9AA3]">
+                          {alert.value}{" "}
+                          {alert.unit || ""}
                         </span>
                       </p>
                     )}

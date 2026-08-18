@@ -8,8 +8,8 @@ import {
 function getAQIColor(aqi) {
   if (aqi <= 50) return "#35D07F";
   if (aqi <= 100) return "#9BC53D";
-  if (aqi <= 150) return "#FFB547";
-  if (aqi <= 200) return "#FF7A59";
+  if (aqi <= 200) return "#FFB547";
+  if (aqi <= 300) return "#FF7A59";
   return "#FF5A5F";
 }
 
@@ -34,17 +34,12 @@ function UpcomingRisk({
   hotspots,
   prediction,
 }) {
-  /*
-   * Forecast predictions
-   */
-  const predictions =
-    Array.isArray(forecast?.predictions)
-      ? forecast.predictions
-      : [];
+  const predictions = Array.isArray(
+    forecast?.predictions
+  )
+    ? forecast.predictions
+    : [];
 
-  /*
-   * Find the highest predicted AQI.
-   */
   const highestPrediction =
     predictions.reduce(
       (highest, current) => {
@@ -52,34 +47,27 @@ function UpcomingRisk({
           current?.estimatedAQI
         );
 
+        if (
+          !Number.isFinite(currentAQI)
+        ) {
+          return highest;
+        }
+
+        if (!highest) {
+          return current;
+        }
+
         const highestAQI = Number(
           highest?.estimatedAQI
         );
 
-        if (
-          !highest ||
-          (
-            Number.isFinite(currentAQI) &&
-            currentAQI > highestAQI
-          )
-        ) {
-          return current;
-        }
-
-        return highest;
+        return currentAQI > highestAQI
+          ? current
+          : highest;
       },
       null
     );
 
-  /*
-   * CPCB stations.
-   *
-   * Your backend may return:
-   *
-   * hotspots.airQuality.stations
-   * OR
-   * hotspots.stations
-   */
   const stations = Array.isArray(
     hotspots?.airQuality?.stations
   )
@@ -88,9 +76,6 @@ function UpcomingRisk({
     ? hotspots.stations
     : [];
 
-  /*
-   * Highest-risk monitoring station.
-   */
   const highestHotspot =
     [...stations]
       .filter((station) =>
@@ -100,25 +85,16 @@ function UpcomingRisk({
       )
       .sort(
         (a, b) =>
-          Number(b.aqi) -
-          Number(a.aqi)
+          Number(b.aqi) - Number(a.aqi)
       )[0] || null;
 
-  /*
-   * Predicted AQI.
-   */
   const predictedAQI =
     highestPrediction?.estimatedAQI ??
     prediction?.prediction?.predictedAQI ??
     null;
 
-  /*
-   * IMPORTANT:
-   * Always make sure this is a string.
-   *
-   * Never render an entire object.
-   */
-  let riskLocation = "Selected location";
+  let riskLocation =
+    "Selected location";
 
   if (
     typeof highestHotspot?.station ===
@@ -133,12 +109,6 @@ function UpcomingRisk({
     riskLocation =
       forecast.location.name;
   } else if (
-    typeof hotspots?.location?.name ===
-    "string"
-  ) {
-    riskLocation =
-      hotspots.location.name;
-  } else if (
     typeof hotspots?.location ===
     "string"
   ) {
@@ -146,9 +116,6 @@ function UpcomingRisk({
       hotspots.location;
   }
 
-  /*
-   * Peak time.
-   */
   const peakTime =
     highestPrediction?.dateTime
       ? formatTime(
@@ -156,9 +123,6 @@ function UpcomingRisk({
         )
       : "Upcoming period";
 
-  /*
-   * Category.
-   */
   const category =
     typeof highestPrediction?.category ===
     "string"
@@ -168,8 +132,9 @@ function UpcomingRisk({
       ? prediction.prediction.category
       : getAQICategory(predictedAQI);
 
-  const numericAQI =
-    Number(predictedAQI);
+  const numericAQI = Number(
+    predictedAQI
+  );
 
   const color = getAQIColor(
     Number.isFinite(numericAQI)
@@ -178,8 +143,7 @@ function UpcomingRisk({
   );
 
   return (
-    <section className="rounded-2xl border border-white/10 bg-[#101B20] p-4 sm:p-5 lg:p-6">
-      {/* Header */}
+    <section className="min-w-0 rounded-2xl border border-white/10 bg-[#101B20] p-4 sm:p-5 lg:p-6">
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
           <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-[#64757d] sm:text-xs">
@@ -204,7 +168,6 @@ function UpcomingRisk({
         </div>
       </div>
 
-      {/* Risk information */}
       <div className="mt-6 rounded-xl border border-white/[0.07] bg-white/[0.025] p-4 sm:p-5">
         <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
@@ -241,7 +204,6 @@ function UpcomingRisk({
         </div>
       </div>
 
-      {/* Insight */}
       <div className="mt-5 rounded-xl border border-white/[0.07] bg-white/[0.02] p-4">
         <div className="flex items-start gap-3">
           <TrendingUp
@@ -263,7 +225,6 @@ function UpcomingRisk({
         </div>
       </div>
 
-      {/* Highest current station */}
       {highestHotspot && (
         <div className="mt-4 flex flex-col gap-1 text-xs sm:flex-row sm:items-center sm:justify-between">
           <span className="text-[#64757d]">
@@ -298,15 +259,16 @@ function formatTime(dateTime) {
     return "Upcoming period";
   }
 
+  const raw = String(dateTime);
+
   const date = new Date(
-    String(dateTime).replace(
-      " ",
-      "T"
-    )
+    raw.includes("T")
+      ? raw
+      : raw.replace(" ", "T")
   );
 
   if (Number.isNaN(date.getTime())) {
-    return String(dateTime);
+    return raw;
   }
 
   return date.toLocaleTimeString(

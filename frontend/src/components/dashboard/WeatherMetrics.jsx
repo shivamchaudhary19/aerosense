@@ -6,58 +6,118 @@ import {
 } from "lucide-react";
 
 function WeatherMetrics({ data }) {
-  const temperature = Number(data?.temperature);
-  const feelsLike = Number(data?.feelsLike);
-  const humidity = Number(data?.humidity);
-  const windSpeed = Number(data?.windSpeed);
-  const windDirection = Number(data?.windDirection);
-  const pressure = Number(data?.pressure);
+  const temperature = Number(
+    data?.temperature
+  );
+
+  const feelsLike = Number(
+    data?.feelsLike
+  );
+
+  const humidity = Number(
+    data?.humidity
+  );
+
+  const windSpeed = Number(
+    data?.windSpeed
+  );
+
+  const windDirection = Number(
+    data?.windDirection
+  );
+
+  const pressure = Number(
+    data?.pressure
+  );
+
+  /*
+   * OpenWeather wind speed is generally
+   * provided in metres/second.
+   *
+   * Convert to km/h for the UI.
+   */
+  const windSpeedKmh =
+    Number.isFinite(windSpeed)
+      ? windSpeed * 3.6
+      : null;
 
   const metrics = [
     {
       label: "Temperature",
-      value: Number.isFinite(temperature)
-        ? `${Math.round(temperature)}°C`
-        : "—",
-      description: Number.isFinite(feelsLike)
-        ? `Feels like ${Math.round(
-            feelsLike
+      value: Number.isFinite(
+        temperature
+      )
+        ? `${Math.round(
+            temperature
           )}°C`
-        : "Unavailable",
+        : "—",
+
+      description:
+        Number.isFinite(feelsLike)
+          ? `Feels like ${Math.round(
+              feelsLike
+            )}°C`
+          : "Unavailable",
+
       icon: Thermometer,
     },
+
     {
       label: "Humidity",
-      value: Number.isFinite(humidity)
-        ? `${Math.round(humidity)}%`
+      value: Number.isFinite(
+        humidity
+      )
+        ? `${Math.round(
+            humidity
+          )}%`
         : "—",
-      description: "Relative humidity",
+
+      description:
+        "Relative humidity",
+
       icon: Droplets,
     },
+
     {
       label: "Wind Speed",
-      value: Number.isFinite(windSpeed)
-        ? `${windSpeed.toFixed(1)} km/h`
-        : "—",
-      description: Number.isFinite(
-        windDirection
+      value: Number.isFinite(
+        windSpeedKmh
       )
-        ? `${getWindDirection(windDirection)}`
-        : "Wind direction unavailable",
+        ? `${windSpeedKmh.toFixed(
+            1
+          )} km/h`
+        : "—",
+
+      description:
+        Number.isFinite(
+          windDirection
+        )
+          ? getWindDirection(
+              windDirection
+            )
+          : "Wind direction unavailable",
+
       icon: Wind,
     },
+
     {
       label: "Pressure",
-      value: Number.isFinite(pressure)
-        ? `${Math.round(pressure)}`
+      value: Number.isFinite(
+        pressure
+      )
+        ? `${Math.round(
+            pressure
+          )}`
         : "—",
+
       description: "hPa",
+
       icon: Gauge,
     },
   ];
 
   return (
-    <section>
+    <section className="min-w-0">
       <div className="mb-4">
         <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-[#64757d] sm:text-xs">
           Environmental Conditions
@@ -75,10 +135,10 @@ function WeatherMetrics({ data }) {
           return (
             <div
               key={metric.label}
-              className="rounded-2xl border border-white/10 bg-[#101B20] p-4 transition-colors hover:border-white/15 sm:p-5"
+              className="min-w-0 rounded-2xl border border-white/10 bg-[#101B20] p-4 transition-colors hover:border-white/15 sm:p-5"
             >
               <div className="flex items-center justify-between gap-3">
-                <span className="text-xs text-[#8A9AA3]">
+                <span className="truncate text-xs text-[#8A9AA3]">
                   {metric.label}
                 </span>
 

@@ -7,18 +7,25 @@ import {
 function getAQIColor(aqi) {
   if (aqi <= 50) return "#35D07F";
   if (aqi <= 100) return "#9BC53D";
-  if (aqi <= 150) return "#FFB547";
-  if (aqi <= 200) return "#FF7A59";
+  if (aqi <= 200) return "#FFB547";
+  if (aqi <= 300) return "#FF7A59";
   return "#FF5A5F";
 }
 
 function HotspotSummary({ data }) {
-  const stations =
-    data?.airQuality?.stations || [];
+  const stations = Array.isArray(
+    data?.airQuality?.stations
+  )
+    ? data.airQuality.stations
+    : Array.isArray(data?.stations)
+    ? data.stations
+    : [];
 
   const hotspots = [...stations]
     .filter((station) =>
-      Number.isFinite(Number(station?.aqi))
+      Number.isFinite(
+        Number(station?.aqi)
+      )
     )
     .sort(
       (a, b) =>
@@ -27,7 +34,7 @@ function HotspotSummary({ data }) {
     .slice(0, 4);
 
   return (
-    <section className="h-full rounded-2xl border border-white/10 bg-[#101B20] p-4 sm:p-5 lg:p-6">
+    <section className="h-full min-w-0 rounded-2xl border border-white/10 bg-[#101B20] p-4 sm:p-5 lg:p-6">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-[#64757d] sm:text-xs">
@@ -59,7 +66,7 @@ function HotspotSummary({ data }) {
 
             return (
               <div
-                key={`${station.station}-${index}`}
+                key={`${station.station || "station"}-${index}`}
                 className="group flex min-w-0 items-center gap-2.5 py-3.5 first:pt-0 last:pb-0 sm:gap-3 sm:py-4"
               >
                 <div
@@ -90,12 +97,10 @@ function HotspotSummary({ data }) {
                     )}
                   </div>
 
-                  <div className="mt-1 flex min-w-0 items-center gap-1.5">
-                    <p className="truncate text-[10px] text-[#64757d] sm:text-xs">
-                      {station.primaryPollutant ||
-                        "Pollution hotspot"}
-                    </p>
-                  </div>
+                  <p className="mt-1 truncate text-[10px] text-[#64757d] sm:text-xs">
+                    {station.primaryPollutant ||
+                      "Pollution hotspot"}
+                  </p>
                 </div>
 
                 <div className="shrink-0 text-right">

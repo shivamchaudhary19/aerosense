@@ -8,8 +8,8 @@ import {
 function getAQIColor(aqi) {
   if (aqi <= 50) return "#35D07F";
   if (aqi <= 100) return "#9BC53D";
-  if (aqi <= 150) return "#FFB547";
-  if (aqi <= 200) return "#FF7A59";
+  if (aqi <= 200) return "#FFB547";
+  if (aqi <= 300) return "#FF7A59";
   return "#FF5A5F";
 }
 
@@ -39,27 +39,37 @@ function getAQIMessage(aqi) {
 
 function AQIOverview({ data }) {
   const aqi = Number(data?.airQuality?.aqi) || 0;
+
   const category =
-    data?.airQuality?.category || "Unknown";
+    data?.airQuality?.category ||
+    "Unknown";
 
-  const pm25 =
-    Number(data?.airQuality?.pm2_5) || 0;
+  const pm25 = Number(
+    data?.airQuality?.pm2_5
+  );
 
-  const pm10 =
-    Number(data?.airQuality?.pm10) || 0;
+  const pm10 = Number(
+    data?.airQuality?.pm10
+  );
+
+  const visibilityValue =
+    data?.weather?.visibility;
 
   const visibility =
-    data?.weather?.visibility !== undefined &&
-    data?.weather?.visibility !== null
-      ? (Number(data.weather.visibility) / 1000).toFixed(
-          1
-        )
+    visibilityValue !== undefined &&
+    visibilityValue !== null &&
+    Number.isFinite(
+      Number(visibilityValue)
+    )
+      ? (
+          Number(visibilityValue) / 1000
+        ).toFixed(1)
       : "—";
 
   const color = getAQIColor(aqi);
 
   return (
-    <section className="rounded-2xl border border-white/10 bg-[#101B20] p-4 sm:p-5 lg:p-6">
+    <section className="min-w-0 rounded-2xl border border-white/10 bg-[#101B20] p-4 sm:p-5 lg:p-6">
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
           <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-[#64757d] sm:text-xs">
@@ -109,14 +119,22 @@ function AQIOverview({ data }) {
         <Metric
           icon={Wind}
           label="PM2.5"
-          value={pm25.toFixed(1)}
+          value={
+            Number.isFinite(pm25)
+              ? pm25.toFixed(1)
+              : "—"
+          }
           unit="µg/m³"
         />
 
         <Metric
           icon={Wind}
           label="PM10"
-          value={pm10.toFixed(1)}
+          value={
+            Number.isFinite(pm10)
+              ? pm10.toFixed(1)
+              : "—"
+          }
           unit="µg/m³"
         />
 
@@ -138,7 +156,7 @@ function Metric({
   unit,
 }) {
   return (
-    <div className="rounded-xl border border-white/[0.07] bg-white/[0.025] p-4">
+    <div className="min-w-0 rounded-xl border border-white/[0.07] bg-white/[0.025] p-4">
       <div className="flex items-center gap-2 text-[#64757d]">
         <Icon size={15} />
 
@@ -147,12 +165,12 @@ function Metric({
         </span>
       </div>
 
-      <div className="mt-3 flex items-baseline">
-        <span className="text-xl font-semibold text-[#F5F7F8]">
+      <div className="mt-3 flex min-w-0 items-baseline">
+        <span className="truncate text-xl font-semibold text-[#F5F7F8]">
           {value}
         </span>
 
-        <span className="ml-1 text-[10px] text-[#64757d] sm:text-xs">
+        <span className="ml-1 shrink-0 text-[10px] text-[#64757d] sm:text-xs">
           {unit}
         </span>
       </div>
