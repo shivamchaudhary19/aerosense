@@ -2,6 +2,8 @@ const express = require("express");
 const cors = require("cors");
 require("dotenv").config();
 
+const environmentRoutes = require("./routes/environmentRoutes");
+
 const app = express();
 
 app.use(cors());
@@ -13,6 +15,8 @@ app.get("/api/health", (req, res) => {
     service: "AeroSense Backend",
   });
 });
+
+app.use("/api/environment", environmentRoutes);
 
 const PORT = process.env.PORT || 5000;
 
