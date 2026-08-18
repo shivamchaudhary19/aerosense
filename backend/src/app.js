@@ -4,6 +4,7 @@ require("dotenv").config();
 
 const environmentRoutes = require("./routes/environmentRoutes");
 const forecastRoutes = require("./routes/forecastRoutes");
+const hotspotRoutes = require("./routes/hotspotRoutes");
 
 const app = express();
 
@@ -19,6 +20,7 @@ app.get("/api/health", (req, res) => {
 
 app.use("/api/environment", environmentRoutes);
 app.use("/api/forecast", forecastRoutes);
+app.use("/api/hotspots", hotspotRoutes);
 
 const PORT = process.env.PORT || 5000;
 
