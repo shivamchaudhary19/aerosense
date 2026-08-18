@@ -7,6 +7,7 @@ const forecastRoutes = require("./routes/forecastRoutes");
 const hotspotRoutes = require("./routes/hotspotRoutes");
 const alertRoutes = require("./routes/alertRoutes");
 const governmentRoutes = require("./routes/governmentRoutes");
+const predictionRoutes = require("./routes/predictionRoutes");
 
 const app = express();
 
@@ -25,6 +26,7 @@ app.use("/api/forecast", forecastRoutes);
 app.use("/api/hotspots", hotspotRoutes);
 app.use("/api/alerts", alertRoutes);
 app.use("/api/government", governmentRoutes);
+app.use("/api/prediction", predictionRoutes);
 
 const PORT = process.env.PORT || 5000;
 

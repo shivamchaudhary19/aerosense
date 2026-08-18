@@ -72,18 +72,11 @@ def predict_aqi(environment):
 
 
 if __name__ == "__main__":
-    sample_environment = {
-        "pm2_5": 35,
-        "pm10": 70,
-        "no2": 25,
-        "o3": 75,
-        "so2": 8,
-        "co": 300,
-        "temperature": 32,
-        "humidity": 70,
-        "wind_speed": 1.8,
-    }
+    import json
+    import sys
 
-    result = predict_aqi(sample_environment)
+    environment = json.loads(sys.stdin.read())
 
-    print(result)
+    result = predict_aqi(environment)
+
+    print(json.dumps(result))
