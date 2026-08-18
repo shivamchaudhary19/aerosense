@@ -1,7 +1,7 @@
 const { getLocation } = require("./locationService");
 
 async function getCurrentEnvironment(location) {
-  const selectedLocation = getLocation(location);
+  const selectedLocation = await getLocation(location);
 
   if (!selectedLocation) {
     throw new Error("Unsupported location");
@@ -50,7 +50,7 @@ async function getCurrentEnvironment(location) {
 }
 
 async function getAirQuality(location) {
-  const selectedLocation = getLocation(location);
+  const selectedLocation = await getLocation(location);
 
   if (!selectedLocation) {
     throw new Error("Unsupported location");
