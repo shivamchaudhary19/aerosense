@@ -22,11 +22,12 @@ function MapRecenter({ location }) {
   useEffect(() => {
     if (!location) return;
 
-    map.setView(
+    map.flyTo(
       [location.latitude, location.longitude],
       12,
       {
         animate: true,
+        duration: 0.8,
       }
     );
   }, [location, map]);
@@ -39,7 +40,6 @@ function PollutionMap({
   selectedHotspot,
   onSelectHotspot,
 }) {
-
   const stations = useMemo(() => {
     return hotspots
       .map((station, index) => {
@@ -65,11 +65,13 @@ function PollutionMap({
 
         return {
           id:
-            station.station ||
+            station.id ??
+            station.station ??
             `station-${index}`,
 
           name:
-            station.station ||
+            station.name ??
+            station.station ??
             "Unknown station",
 
           latitude,
@@ -78,15 +80,15 @@ function PollutionMap({
           aqi,
 
           category:
-            station.category ||
+            station.category ??
             "Unknown",
 
           primaryPollutant:
-            station.primaryPollutant ||
+            station.primaryPollutant ??
             "Unknown",
 
           lastUpdate:
-            station.lastUpdate ||
+            station.lastUpdate ??
             null,
         };
       })
@@ -95,9 +97,23 @@ function PollutionMap({
 
   const mapCenter = useMemo(() => {
     if (stations.length > 0) {
+      const totalLatitude = stations.reduce(
+        (sum, station) =>
+          sum + station.latitude,
+        0
+      );
+
+      const totalLongitude = stations.reduce(
+        (sum, station) =>
+          sum + station.longitude,
+        0
+      );
+
       return {
-        latitude: stations[0].latitude,
-        longitude: stations[0].longitude,
+        latitude:
+          totalLatitude / stations.length,
+        longitude:
+          totalLongitude / stations.length,
       };
     }
 
@@ -108,14 +124,17 @@ function PollutionMap({
   }, [stations]);
 
   return (
-    <div className="relative h-[420px] w-full overflow-hidden rounded-2xl border border-white/10 sm:h-[500px] lg:h-[600px]">
+    <div className="relative h-[380px] w-full overflow-hidden rounded-2xl border border-white/10 sm:h-[480px] md:h-[540px] lg:h-[600px]">
       <MapContainer
         center={[
           mapCenter.latitude,
           mapCenter.longitude,
         ]}
         zoom={12}
+        minZoom={9}
+        maxZoom={18}
         scrollWheelZoom={true}
+        zoomControl={true}
         className="h-full w-full"
       >
         <TileLayer
@@ -140,17 +159,21 @@ function PollutionMap({
                 station.longitude,
               ]}
               radius={
-                isSelected ? 14 : 10
+                isSelected
+                  ? 15
+                  : 9
               }
               pathOptions={{
                 color,
                 fillColor: color,
                 fillOpacity:
                   isSelected
-                    ? 0.8
-                    : 0.55,
+                    ? 0.85
+                    : 0.6,
                 weight:
-                  isSelected ? 3 : 2,
+                  isSelected
+                    ? 3
+                    : 2,
               }}
               eventHandlers={{
                 click: () =>
@@ -159,29 +182,52 @@ function PollutionMap({
                   ),
               }}
             >
-              <Popup>
-                <div className="min-w-[180px] space-y-1 text-sm">
-                  <p className="font-semibold">
+              <Popup
+                closeButton={true}
+                autoPan={true}
+                keepInView={true}
+              >
+                <div className="w-[190px] max-w-[70vw] space-y-1.5 text-sm">
+                  <p className="break-words font-semibold text-gray-900">
                     {station.name}
                   </p>
 
-                  <p>
-                    <strong>AQI:</strong>{" "}
-                    {station.aqi}
-                  </p>
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-gray-600">
+                      AQI
+                    </span>
 
-                  <p>
-                    <strong>Status:</strong>{" "}
-                    {station.category}
-                  </p>
+                    <strong
+                      style={{
+                        color,
+                      }}
+                    >
+                      {station.aqi}
+                    </strong>
+                  </div>
 
-                  <p>
-                    <strong>Primary pollutant:</strong>{" "}
-                    {station.primaryPollutant}
-                  </p>
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-gray-600">
+                      Status
+                    </span>
+
+                    <span className="text-right font-medium">
+                      {station.category}
+                    </span>
+                  </div>
+
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-gray-600">
+                      Primary pollutant
+                    </span>
+
+                    <strong className="break-words">
+                      {station.primaryPollutant}
+                    </strong>
+                  </div>
 
                   {station.lastUpdate && (
-                    <p className="text-xs text-gray-500">
+                    <p className="border-t border-gray-200 pt-1.5 text-[11px] text-gray-500">
                       Updated:{" "}
                       {station.lastUpdate}
                     </p>
@@ -193,16 +239,32 @@ function PollutionMap({
         })}
       </MapContainer>
 
+      {/* Station count */}
+      {stations.length > 0 && (
+        <div className="pointer-events-none absolute left-3 top-3 z-[1000]">
+          <div className="rounded-lg border border-white/10 bg-[#101B20]/90 px-3 py-2 shadow-lg backdrop-blur-md">
+            <p className="text-[10px] uppercase tracking-[0.12em] text-[#64757d]">
+              CPCB Stations
+            </p>
+
+            <p className="mt-0.5 text-sm font-semibold text-[#F5F7F8]">
+              {stations.length}
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Empty state */}
       {stations.length === 0 && (
-        <div className="absolute inset-0 z-[1000] flex items-center justify-center bg-[#071014]/40 backdrop-blur-[2px]">
-          <div className="mx-4 rounded-xl border border-white/10 bg-[#101B20]/95 px-5 py-4 text-center">
+        <div className="absolute inset-0 z-[1000] flex items-center justify-center bg-[#071014]/45 px-4 backdrop-blur-[2px]">
+          <div className="w-full max-w-sm rounded-xl border border-white/10 bg-[#101B20]/95 px-5 py-5 text-center shadow-2xl">
             <p className="text-sm font-medium text-[#F5F7F8]">
               No monitoring station data
             </p>
 
-            <p className="mt-1 text-xs text-[#64757d]">
-              CPCB station data is currently unavailable.
+            <p className="mt-2 text-xs leading-5 text-[#64757d]">
+              CPCB station data is currently
+              unavailable for this location.
             </p>
           </div>
         </div>

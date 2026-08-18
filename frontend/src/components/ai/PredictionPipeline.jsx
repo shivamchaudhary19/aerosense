@@ -4,36 +4,48 @@ import {
   BrainCircuit,
   LineChart,
   ArrowRight,
+  CheckCircle2,
 } from "lucide-react";
 
-const stages = [
-  {
-    number: "01",
-    title: "Environmental Data",
-    description: "AQI, weather and atmospheric observations",
-    icon: Database,
-  },
-  {
-    number: "02",
-    title: "Feature Processing",
-    description: "Normalize signals and identify patterns",
-    icon: SlidersHorizontal,
-  },
-  {
-    number: "03",
-    title: "Prediction Model",
-    description: "Estimate future pollution conditions",
-    icon: BrainCircuit,
-  },
-  {
-    number: "04",
-    title: "AQI Forecast",
-    description: "Generate location-specific predictions",
-    icon: LineChart,
-  },
-];
+function PredictionPipeline({ data }) {
+  const stages = [
+    {
+      number: "01",
+      title: "Environmental Data",
+      description:
+        "AQI, weather and atmospheric observations",
+      icon: Database,
+    },
+    {
+      number: "02",
+      title: "Feature Processing",
+      description:
+        "Prepare environmental signals for prediction",
+      icon: SlidersHorizontal,
+    },
+    {
+      number: "03",
+      title: "Random Forest Model",
+      description:
+        "Estimate future pollution conditions",
+      icon: BrainCircuit,
+    },
+    {
+      number: "04",
+      title: "AQI Prediction",
+      description:
+        "Generate location-specific prediction",
+      icon: LineChart,
+    },
+  ];
 
-function PredictionPipeline() {
+  const predictionAvailable =
+    Boolean(
+      data?.predictedAQI ??
+        data?.prediction?.predictedAQI ??
+        data?.prediction?.aqi
+    );
+
   return (
     <section className="rounded-2xl border border-white/10 bg-[#101B20] p-5 sm:p-6">
       <div>
@@ -46,8 +58,9 @@ function PredictionPipeline() {
         </h2>
 
         <p className="mt-2 max-w-2xl text-sm leading-6 text-[#64757d]">
-          Environmental signals are processed through the prediction pipeline
-          before being converted into actionable AQI forecasts.
+          Environmental signals are processed through the
+          machine-learning pipeline before being converted
+          into AQI predictions.
         </p>
       </div>
 
@@ -56,10 +69,13 @@ function PredictionPipeline() {
           const Icon = stage.icon;
 
           return (
-            <div key={stage.number} className="contents">
-              <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-4">
+            <div
+              key={stage.number}
+              className="contents"
+            >
+              <div className="min-w-0 rounded-xl border border-white/[0.07] bg-white/[0.02] p-4">
                 <div className="flex items-start justify-between gap-3">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#29C7F6]/10 text-[#29C7F6]">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#29C7F6]/10 text-[#29C7F6]">
                     <Icon size={17} />
                   </div>
 
@@ -75,6 +91,18 @@ function PredictionPipeline() {
                 <p className="mt-1 text-xs leading-5 text-[#64757d]">
                   {stage.description}
                 </p>
+
+                {index === 3 && (
+                  <div className="mt-3 flex items-center gap-1.5 text-[10px] text-[#35D07F]">
+                    <CheckCircle2 size={12} />
+
+                    <span>
+                      {predictionAvailable
+                        ? "Prediction available"
+                        : "Awaiting prediction"}
+                    </span>
+                  </div>
+                )}
               </div>
 
               {index < stages.length - 1 && (

@@ -1,38 +1,13 @@
 const CPCB_API_URL =
   "https://api.data.gov.in/resource/3b01bcb8-0b14-4abf-b6f2-c1bfd384ba69";
 
-function normalizeCity(city) {
-  const aliases = {
-    delhi: "Delhi",
-    "new delhi": "Delhi",
-    noida: "Noida",
-    "greater noida": "Greater Noida",
-    mumbai: "Mumbai",
-    bombay: "Mumbai",
-    bengaluru: "Bengaluru",
-    bangalore: "Bengaluru",
-    kolkata: "Kolkata",
-    calcutta: "Kolkata",
-    chennai: "Chennai",
-    madras: "Chennai",
-    hyderabad: "Hyderabad",
-    pune: "Pune",
-    ahmedabad: "Ahmedabad",
-    jaipur: "Jaipur",
-    lucknow: "Lucknow",
-    kanpur: "Kanpur",
-    ghaziabad: "Ghaziabad",
-    gurugram: "Gurugram",
-    gurgaon: "Gurugram",
-  };
-
-  const normalized = String(city)
-    .trim()
-    .toLowerCase();
-
-  return aliases[normalized] || String(city).trim();
-}
-
+/*
+ * CPCB-style concentration → sub-index breakpoints.
+ *
+ * IMPORTANT:
+ * These are used for our application-side calculation.
+ * The raw CPCB monitoring observations remain the source data.
+ */
 const BREAKPOINTS = {
   "PM2.5": [
     [0, 30, 0, 50],
@@ -98,6 +73,67 @@ const BREAKPOINTS = {
   ],
 };
 
+const POLLUTANTS = [
+  "PM2.5",
+  "PM10",
+  "NO2",
+  "OZONE",
+  "SO2",
+  "NH3",
+  "CO",
+];
+
+/*
+ * City aliases.
+ */
+function normalizeCity(city) {
+  const aliases = {
+    delhi: "Delhi",
+    "new delhi": "Delhi",
+
+    noida: "Noida",
+    "greater noida": "Greater Noida",
+
+    mumbai: "Mumbai",
+    bombay: "Mumbai",
+
+    bengaluru: "Bengaluru",
+    bangalore: "Bengaluru",
+
+    kolkata: "Kolkata",
+    calcutta: "Kolkata",
+
+    chennai: "Chennai",
+    madras: "Chennai",
+
+    hyderabad: "Hyderabad",
+
+    pune: "Pune",
+
+    ahmedabad: "Ahmedabad",
+
+    jaipur: "Jaipur",
+
+    lucknow: "Lucknow",
+
+    kanpur: "Kanpur",
+
+    ghaziabad: "Ghaziabad",
+
+    gurugram: "Gurugram",
+    gurgaon: "Gurugram",
+  };
+
+  const normalized = String(city || "")
+    .trim()
+    .toLowerCase();
+
+  return aliases[normalized] || String(city || "").trim();
+}
+
+/*
+ * Convert a concentration to its sub-index.
+ */
 function calculateSubIndex(pollutant, concentration) {
   const value = Number(concentration);
 
@@ -112,8 +148,7 @@ function calculateSubIndex(pollutant, concentration) {
   }
 
   const range = ranges.find(
-    ([low, high]) =>
-      value >= low && value <= high
+    ([low, high]) => value >= low && value <= high
   );
 
   if (!range) {
@@ -142,15 +177,22 @@ function calculateSubIndex(pollutant, concentration) {
   );
 }
 
+/*
+ * AQI category.
+ */
 function getCategory(aqi) {
   if (aqi <= 50) return "Good";
   if (aqi <= 100) return "Satisfactory";
   if (aqi <= 200) return "Moderate";
   if (aqi <= 300) return "Poor";
   if (aqi <= 400) return "Very Poor";
+
   return "Severe";
 }
 
+/*
+ * Safely extract CPCB average concentration.
+ */
 function getAverageValue(record) {
   return Number(
     record.avg_value ??
@@ -158,6 +200,9 @@ function getAverageValue(record) {
   );
 }
 
+/*
+ * Normalize pollutant IDs returned by data.gov.in.
+ */
 function normalizePollutantId(pollutantId) {
   if (!pollutantId) {
     return null;
@@ -179,19 +224,41 @@ function normalizePollutantId(pollutantId) {
   return null;
 }
 
+/*
+ * Normalize CO.
+ *
+ * CPCB dataset commonly exposes CO in µg/m³.
+ * Our breakpoint table expects mg/m³.
+ */
+function normalizeConcentration(
+  pollutant,
+  value
+) {
+  if (pollutant === "CO") {
+    return value / 1000;
+  }
+
+  return value;
+}
+
+/*
+ * Calculate AQI for one monitoring station.
+ */
 function calculateStationAQI(records) {
   const pollutants = {};
 
   for (const record of records) {
-    const pollutant = normalizePollutantId(
-      record.pollutant_id
-    );
+    const pollutant =
+      normalizePollutantId(
+        record.pollutant_id
+      );
 
     if (!pollutant) {
       continue;
     }
 
-    const value = getAverageValue(record);
+    const value =
+      getAverageValue(record);
 
     if (!Number.isFinite(value)) {
       continue;
@@ -199,37 +266,54 @@ function calculateStationAQI(records) {
 
     pollutants[pollutant] = {
       value,
-      station: record.station,
-      lastUpdate: record.last_update,
-      city: record.city,
-      state: record.state,
-      latitude: record.latitude,
-      longitude: record.longitude,
+
+      station: record.station || null,
+
+      lastUpdate:
+        record.last_update || null,
+
+      city: record.city || null,
+
+      state: record.state || null,
+
+      latitude:
+        record.latitude || null,
+
+      longitude:
+        record.longitude || null,
     };
   }
 
   const subIndices = {};
 
-  for (const [pollutant, data] of Object.entries(
-    pollutants
-  )) {
-    let concentration = data.value;
+  for (const pollutant of POLLUTANTS) {
+    const pollutantData =
+      pollutants[pollutant];
 
-    if (pollutant === "CO") {
-      concentration = concentration / 1000;
+    if (!pollutantData) {
+      continue;
     }
 
-    const subIndex = calculateSubIndex(
-      pollutant,
-      concentration
-    );
+    const normalizedValue =
+      normalizeConcentration(
+        pollutant,
+        pollutantData.value
+      );
+
+    const subIndex =
+      calculateSubIndex(
+        pollutant,
+        normalizedValue
+      );
 
     if (subIndex !== null) {
-      subIndices[pollutant] = subIndex;
+      subIndices[pollutant] =
+        subIndex;
     }
   }
 
-  const available = Object.entries(subIndices);
+  const available =
+    Object.entries(subIndices);
 
   if (available.length === 0) {
     return null;
@@ -245,7 +329,7 @@ function calculateStationAQI(records) {
         : highest
   );
 
-  const firstPollutant =
+  const primaryData =
     pollutants[primaryPollutant];
 
   return {
@@ -261,57 +345,230 @@ function calculateStationAQI(records) {
     pollutants,
 
     station:
-      firstPollutant?.station || null,
+      primaryData?.station || null,
 
     lastUpdate:
-      firstPollutant?.lastUpdate || null,
+      primaryData?.lastUpdate || null,
 
     state:
-      firstPollutant?.state || null,
+      primaryData?.state || null,
 
     city:
-      firstPollutant?.city || null,
+      primaryData?.city || null,
 
     coordinates: {
       latitude:
-        firstPollutant?.latitude || null,
+        primaryData?.latitude || null,
 
       longitude:
-        firstPollutant?.longitude || null,
+        primaryData?.longitude || null,
     },
   };
 }
 
 /*
- * Calculate a representative city AQI from
- * all available monitoring stations.
- *
- * We use the median rather than the maximum.
- * Maximum is retained separately as the
- * highest-risk station.
+ * Median helper.
  */
-function calculateCityAQI(stationResults) {
-  const sortedAQIs = stationResults
-    .map((station) => station.aqi)
-    .sort((a, b) => a - b);
-
-  const middle =
-    Math.floor(sortedAQIs.length / 2);
-
-  let median;
-
-  if (sortedAQIs.length % 2 === 0) {
-    median =
-      (sortedAQIs[middle - 1] +
-        sortedAQIs[middle]) /
-      2;
-  } else {
-    median = sortedAQIs[middle];
+function calculateMedian(values) {
+  if (!values.length) {
+    return null;
   }
 
-  return Math.round(median);
+  const sorted = [...values].sort(
+    (a, b) => a - b
+  );
+
+  const middle =
+    Math.floor(sorted.length / 2);
+
+  if (sorted.length % 2 === 0) {
+    return (
+      (sorted[middle - 1] +
+        sorted[middle]) /
+      2
+    );
+  }
+
+  return sorted[middle];
 }
 
+/*
+ * Calculate representative city AQI.
+ *
+ * Median is deliberately used instead of maximum
+ * because one extreme station should not automatically
+ * represent the entire city.
+ */
+function calculateCityAQI(
+  stationResults
+) {
+  const values =
+    stationResults
+      .map((station) => station.aqi)
+      .filter(Number.isFinite);
+
+  return Math.round(
+    calculateMedian(values)
+  );
+}
+
+/*
+ * Calculate average station AQI.
+ */
+function calculateAverageAQI(
+  stationResults
+) {
+  if (!stationResults.length) {
+    return null;
+  }
+
+  const total =
+    stationResults.reduce(
+      (sum, station) =>
+        sum + station.aqi,
+      0
+    );
+
+  return Math.round(
+    total / stationResults.length
+  );
+}
+
+/*
+ * Create a pollutant summary across stations.
+ */
+function createPollutantSummary(
+  stationResults
+) {
+  const summary = {};
+
+  for (const pollutant of POLLUTANTS) {
+    const observations =
+      stationResults
+        .map(
+          (station) =>
+            station.pollutants?.[
+              pollutant
+            ]
+        )
+        .filter(Boolean);
+
+    if (!observations.length) {
+      continue;
+    }
+
+    const values =
+      observations
+        .map(
+          (item) =>
+            Number(item.value)
+        )
+        .filter(Number.isFinite);
+
+    if (!values.length) {
+      continue;
+    }
+
+    const average =
+      values.reduce(
+        (sum, value) =>
+          sum + value,
+        0
+      ) / values.length;
+
+    const highest =
+      Math.max(...values);
+
+    const lowest =
+      Math.min(...values);
+
+    summary[pollutant] = {
+      average: Number(
+        average.toFixed(2)
+      ),
+
+      highest,
+
+      lowest,
+
+      stationCount:
+        observations.length,
+    };
+  }
+
+  return summary;
+}
+
+/*
+ * Create a clean station representation
+ * for frontend consumption.
+ */
+function formatStation(
+  station,
+  index
+) {
+  return {
+    id: `${normalizeStationId(
+      station.station
+    )}-${index}`,
+
+    rank: index + 1,
+
+    station:
+      station.station,
+
+    aqi:
+      station.aqi,
+
+    category:
+      station.category,
+
+    primaryPollutant:
+      station.primaryPollutant,
+
+    subIndices:
+      station.subIndices,
+
+    pollutants:
+      station.pollutants,
+
+    lastUpdate:
+      station.lastUpdate,
+
+    state:
+      station.state,
+
+    city:
+      station.city,
+
+    coordinates:
+      station.coordinates,
+
+    latitude:
+      Number(
+        station.coordinates?.latitude
+      ) || null,
+
+    longitude:
+      Number(
+        station.coordinates?.longitude
+      ) || null,
+  };
+}
+
+/*
+ * Stable station ID for frontend usage.
+ */
+function normalizeStationId(name) {
+  return String(name || "station")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
+/*
+ * Main CPCB service.
+ */
 async function getCPCBData(location) {
   if (!process.env.DATA_GOV_API_KEY) {
     throw new Error(
@@ -319,9 +576,17 @@ async function getCPCBData(location) {
     );
   }
 
-  const city = normalizeCity(location);
+  const city =
+    normalizeCity(location);
 
-  const url = new URL(CPCB_API_URL);
+  if (!city) {
+    throw new Error(
+      "Location is required"
+    );
+  }
+
+  const url =
+    new URL(CPCB_API_URL);
 
   url.searchParams.set(
     "api-key",
@@ -343,7 +608,8 @@ async function getCPCBData(location) {
     "500"
   );
 
-  const response = await fetch(url);
+  const response =
+    await fetch(url);
 
   if (!response.ok) {
     throw new Error(
@@ -351,7 +617,8 @@ async function getCPCBData(location) {
     );
   }
 
-  const data = await response.json();
+  const data =
+    await response.json();
 
   if (!Array.isArray(data.records)) {
     throw new Error(
@@ -366,19 +633,24 @@ async function getCPCBData(location) {
   }
 
   /*
-   * Group records by monitoring station.
+   * Group observations by station.
    */
-  const stations = new Map();
+  const stations =
+    new Map();
 
   for (const record of data.records) {
-    const station = record.station;
+    const station =
+      record.station;
 
     if (!station) {
       continue;
     }
 
     if (!stations.has(station)) {
-      stations.set(station, []);
+      stations.set(
+        station,
+        []
+      );
     }
 
     stations
@@ -386,6 +658,10 @@ async function getCPCBData(location) {
       .push(record);
   }
 
+  /*
+   * Calculate AQI independently for
+   * every monitoring station.
+   */
   const stationResults = [];
 
   for (const [
@@ -405,36 +681,60 @@ async function getCPCBData(location) {
     });
   }
 
-  if (stationResults.length === 0) {
+  if (!stationResults.length) {
     throw new Error(
       `Unable to calculate CPCB AQI for ${city}`
     );
   }
 
   /*
-   * Sort stations from highest AQI to lowest.
+   * Highest AQI first.
    */
   stationResults.sort(
     (a, b) => b.aqi - a.aqi
   );
 
-  /*
-   * Highest-risk station.
-   */
   const highestRisk =
     stationResults[0];
+
+  const lowestRisk =
+    stationResults[
+      stationResults.length - 1
+    ];
 
   /*
    * Representative city AQI.
    */
   const cityAQI =
-    calculateCityAQI(stationResults);
+    calculateCityAQI(
+      stationResults
+    );
+
+  const averageAQI =
+    calculateAverageAQI(
+      stationResults
+    );
+
+  /*
+   * Format station data for
+   * dashboard / heatmap / alerts.
+   */
+  const formattedStations =
+    stationResults.map(
+      (station, index) =>
+        formatStation(
+          station,
+          index
+        )
+    );
 
   return {
     location: city,
+
     country: "IN",
 
-    currentAQI: cityAQI,
+    currentAQI:
+      cityAQI,
 
     category:
       getCategory(cityAQI),
@@ -442,14 +742,20 @@ async function getCPCBData(location) {
     primaryPollutant:
       highestRisk.primaryPollutant,
 
-    methodology:
-      "CPCB-style calculation from CPCB monitoring data using median station AQI",
-
     source:
       "Central Pollution Control Board / data.gov.in",
 
+    methodology:
+      "CPCB-style calculation from CPCB monitoring data using median station AQI",
+
+    stationCount:
+      formattedStations.length,
+
+    averageAQI,
+
     highestRisk: {
-      aqi: highestRisk.aqi,
+      aqi:
+        highestRisk.aqi,
 
       category:
         highestRisk.category,
@@ -467,14 +773,40 @@ async function getCPCBData(location) {
         highestRisk.coordinates,
     },
 
-    stationCount:
-      stationResults.length,
+    lowestRisk: {
+      aqi:
+        lowestRisk.aqi,
+
+      category:
+        lowestRisk.category,
+
+      station:
+        lowestRisk.station,
+
+      primaryPollutant:
+        lowestRisk.primaryPollutant,
+
+      lastUpdate:
+        lowestRisk.lastUpdate,
+
+      coordinates:
+        lowestRisk.coordinates,
+    },
+
+    pollutantSummary:
+      createPollutantSummary(
+        stationResults
+      ),
 
     stations:
-      stationResults,
+      formattedStations,
   };
 }
 
 module.exports = {
   getCPCBData,
+  calculateSubIndex,
+  calculateStationAQI,
+  calculateCityAQI,
+  getCategory,
 };

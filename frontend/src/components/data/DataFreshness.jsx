@@ -5,64 +5,86 @@ import {
   RefreshCw,
 } from "lucide-react";
 
+const freshnessData = [
+  {
+    icon: Activity,
+    label: "Air quality observations",
+    value: "Live",
+  },
+  {
+    icon: Clock3,
+    label: "Weather conditions",
+    value: "Live",
+  },
+  {
+    icon: Database,
+    label: "ML prediction model",
+    value: "Available",
+  },
+];
+
 function DataFreshness() {
   return (
-    <section className="rounded-2xl border border-white/10 bg-[#101B20] p-5 sm:p-6">
+    <section className="min-w-0 rounded-2xl border border-white/10 bg-[#101B20] p-4 sm:p-5 lg:p-6">
       <div className="flex items-start justify-between gap-4">
-        <div>
-          <p className="text-xs font-medium uppercase tracking-[0.16em] text-[#64757d]">
+        <div className="min-w-0">
+          <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-[#64757d] sm:text-xs">
             Data Freshness
           </p>
 
           <h2 className="mt-1 text-lg font-semibold text-[#F5F7F8]">
-            Latest system updates
+            System data status
           </h2>
         </div>
 
-        <RefreshCw size={18} className="text-[#29C7F6]" />
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#29C7F6]/10 text-[#29C7F6]">
+          <RefreshCw size={16} />
+        </div>
       </div>
 
       <div className="mt-6 space-y-3">
-        <FreshnessRow
-          icon={Activity}
-          label="Air quality observations"
-          value="2 min ago"
-        />
-
-        <FreshnessRow
-          icon={Clock3}
-          label="Weather conditions"
-          value="5 min ago"
-        />
-
-        <FreshnessRow
-          icon={Database}
-          label="Prediction dataset"
-          value="12 min ago"
-        />
+        {freshnessData.map((item) => (
+          <FreshnessRow
+            key={item.label}
+            icon={item.icon}
+            label={item.label}
+            value={item.value}
+          />
+        ))}
       </div>
 
       <div className="mt-5 rounded-xl border border-[#35D07F]/10 bg-[#35D07F]/[0.04] p-4">
-        <p className="text-xs font-medium text-[#35D07F]">
-          Pipeline healthy
-        </p>
+        <div className="flex items-center gap-2">
+          <span className="h-2 w-2 rounded-full bg-[#35D07F]" />
 
-        <p className="mt-1 text-xs leading-5 text-[#64757d]">
-          All configured data sources are currently reporting within the
-          expected freshness window.
+          <p className="text-xs font-medium text-[#35D07F]">
+            Pipeline healthy
+          </p>
+        </div>
+
+        <p className="mt-2 text-xs leading-5 text-[#64757d]">
+          Core AeroSense data and prediction services are
+          available for the current session.
         </p>
       </div>
     </section>
   );
 }
 
-function FreshnessRow({ icon: Icon, label, value }) {
+function FreshnessRow({
+  icon: Icon,
+  label,
+  value,
+}) {
   return (
-    <div className="flex items-center justify-between gap-4 rounded-xl border border-white/[0.07] bg-white/[0.02] px-4 py-3">
+    <div className="flex min-w-0 items-center justify-between gap-3 rounded-xl border border-white/[0.07] bg-white/[0.02] px-3 py-3 sm:px-4">
       <div className="flex min-w-0 items-center gap-3">
-        <Icon size={15} className="shrink-0 text-[#64757d]" />
+        <Icon
+          size={15}
+          className="shrink-0 text-[#64757d]"
+        />
 
-        <span className="truncate text-sm text-[#8A9AA3]">
+        <span className="min-w-0 truncate text-xs text-[#8A9AA3] sm:text-sm">
           {label}
         </span>
       </div>

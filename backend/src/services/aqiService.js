@@ -142,4 +142,6 @@ function calculateAQI(components) {
 
 module.exports = {
   calculateAQI,
+  calculateSubIndex,
+  getAQICategory,
 };

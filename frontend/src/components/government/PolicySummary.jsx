@@ -6,12 +6,12 @@ import {
   Leaf,
 } from "lucide-react";
 
-const actions = [
+const fallbackActions = [
   {
     icon: TrafficCone,
     title: "Traffic intervention",
     description:
-      "Prioritize traffic management around Sector 62 and Sector 63 during the predicted evening peak.",
+      "Prioritize traffic management around high-risk zones during predicted pollution peaks.",
   },
   {
     icon: School,
@@ -27,15 +27,27 @@ const actions = [
   },
 ];
 
-function PolicySummary() {
+const iconMap = {
+  traffic: TrafficCone,
+  trafficintervention: TrafficCone,
+  school: School,
+  schooladvisory: School,
+  dust: Leaf,
+  dustcontrol: Leaf,
+  environment: Leaf,
+};
+
+function PolicySummary({ data }) {
+  const actions = getActions(data);
+
   return (
-    <section className="rounded-2xl border border-[#29C7F6]/15 bg-[#101B20] p-5 sm:p-6">
-      <div className="flex items-start gap-4">
+    <section className="min-w-0 rounded-2xl border border-[#29C7F6]/15 bg-[#101B20] p-4 sm:p-6">
+      <div className="flex items-start gap-3 sm:gap-4">
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#29C7F6]/10 text-[#29C7F6]">
           <Sparkles size={19} />
         </div>
 
-        <div>
+        <div className="min-w-0">
           <p className="text-xs font-medium uppercase tracking-[0.16em] text-[#29C7F6]">
             AI Action Layer
           </p>
@@ -45,19 +57,21 @@ function PolicySummary() {
           </h2>
 
           <p className="mt-2 text-sm leading-6 text-[#64757d]">
-            Actions generated from predicted pollution conditions and
-            identified high-risk zones.
+            Actions generated from predicted
+            pollution conditions and identified
+            high-risk zones.
           </p>
         </div>
       </div>
 
-      <div className="mt-6 space-y-3">
-        {actions.map((action) => {
-          const Icon = action.icon;
+      <div className="mt-5 space-y-3 sm:mt-6">
+        {actions.map((action, index) => {
+          const Icon =
+            action.icon || fallbackActions[index % 3].icon;
 
           return (
             <div
-              key={action.title}
+              key={`${action.title}-${index}`}
               className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-4"
             >
               <div className="flex items-start gap-3">
@@ -66,7 +80,7 @@ function PolicySummary() {
                   className="mt-0.5 shrink-0 text-[#29C7F6]"
                 />
 
-                <div>
+                <div className="min-w-0">
                   <p className="text-sm font-medium text-[#F5F7F8]">
                     {action.title}
                   </p>
@@ -88,12 +102,67 @@ function PolicySummary() {
         />
 
         <p className="text-[11px] leading-5 text-[#8A9AA3]">
-          Recommendations are generated from structured forecast and hotspot
-          data. The AI action layer does not generate AQI predictions.
+          Recommendations are generated from
+          structured forecast and hotspot data.
+          The AI action layer does not generate
+          AQI predictions.
         </p>
       </div>
     </section>
   );
+}
+
+function getActions(data) {
+  const source =
+    data?.actions ||
+    data?.recommendations ||
+    data?.policyRecommendations ||
+    data?.interventions;
+
+  if (!Array.isArray(source) || source.length === 0) {
+    return fallbackActions;
+  }
+
+  return source
+    .map((action, index) => {
+      if (typeof action === "string") {
+        return {
+          icon: fallbackActions[index % 3].icon,
+          title: `Recommended action ${index + 1}`,
+          description: action,
+        };
+      }
+
+      const title =
+        action?.title ||
+        action?.name ||
+        action?.action ||
+        "Recommended intervention";
+
+      const description =
+        action?.description ||
+        action?.message ||
+        action?.recommendation ||
+        action?.reason ||
+        "Prioritize this intervention based on current pollution conditions.";
+
+      const key = String(
+        action?.type ||
+          action?.category ||
+          title
+      )
+        .toLowerCase()
+        .replace(/\s+/g, "");
+
+      return {
+        icon:
+          iconMap[key] ||
+          fallbackActions[index % 3].icon,
+        title,
+        description,
+      };
+    })
+    .slice(0, 5);
 }
 
 export default PolicySummary;
