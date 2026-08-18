@@ -1,8 +1,12 @@
-const { getPrediction } = require("../services/predictionService");
+const {
+  getPrediction,
+} = require("../services/predictionService");
 
 async function getPredictionController(req, res) {
   try {
-    const { location } = req.query;
+    const location = String(
+      req.query.location || ""
+    ).trim();
 
     if (!location) {
       return res.status(400).json({
@@ -11,16 +15,28 @@ async function getPredictionController(req, res) {
       });
     }
 
-    const data = await getPrediction(location);
+    const data = await getPrediction(
+      location
+    );
 
-    res.json({
+    return res.json({
       success: true,
       data,
     });
   } catch (error) {
-    res.status(500).json({
+    console.error(
+      "Prediction controller error:",
+      error
+    );
+
+    const statusCode =
+      error?.statusCode || 500;
+
+    return res.status(statusCode).json({
       success: false,
-      error: error.message,
+      error:
+        error?.message ||
+        "Failed to generate AQI prediction",
     });
   }
 }
