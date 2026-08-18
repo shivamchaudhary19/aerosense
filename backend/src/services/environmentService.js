@@ -1,60 +1,118 @@
 const { getLocation } = require("./locationService");
+const { calculateAQI } = require("./aqiService");
 
 async function getCurrentEnvironment(location) {
   const selectedLocation = await getLocation(location);
-
-  if (!selectedLocation) {
-    throw new Error("Unsupported location");
-  }
 
   if (!process.env.OPENWEATHER_API_KEY) {
     throw new Error("OpenWeather API key is not configured");
   }
 
-  const url = new URL(
+  const weatherUrl = new URL(
     "https://api.openweathermap.org/data/2.5/weather"
   );
 
-  url.searchParams.set("lat", selectedLocation.latitude);
-  url.searchParams.set("lon", selectedLocation.longitude);
-  url.searchParams.set("appid", process.env.OPENWEATHER_API_KEY);
-  url.searchParams.set("units", "metric");
+  weatherUrl.searchParams.set("lat", selectedLocation.latitude);
+  weatherUrl.searchParams.set("lon", selectedLocation.longitude);
+  weatherUrl.searchParams.set(
+    "appid",
+    process.env.OPENWEATHER_API_KEY
+  );
+  weatherUrl.searchParams.set("units", "metric");
 
-  const response = await fetch(url);
+  const airQualityUrl = new URL(
+    "https://api.openweathermap.org/data/2.5/air_pollution"
+  );
 
-  if (!response.ok) {
+  airQualityUrl.searchParams.set(
+    "lat",
+    selectedLocation.latitude
+  );
+  airQualityUrl.searchParams.set(
+    "lon",
+    selectedLocation.longitude
+  );
+  airQualityUrl.searchParams.set(
+    "appid",
+    process.env.OPENWEATHER_API_KEY
+  );
+
+  const [weatherResponse, airQualityResponse] = await Promise.all([
+    fetch(weatherUrl),
+    fetch(airQualityUrl),
+  ]);
+
+  if (!weatherResponse.ok) {
     throw new Error("Failed to fetch weather data");
   }
 
-  const data = await response.json();
+  if (!airQualityResponse.ok) {
+    throw new Error("Failed to fetch air quality data");
+  }
+
+  const weather = await weatherResponse.json();
+  const airQuality = await airQualityResponse.json();
+
+  const pollution = airQuality.list?.[0];
+
+  if (!pollution) {
+    throw new Error("Air quality data unavailable");
+  }
+
+  const components = pollution.components;
+
+  const aqiResult = calculateAQI({
+    pm2_5: components.pm2_5,
+    pm10: components.pm10,
+    no2: components.no2,
+    o3: components.o3,
+    so2: components.so2,
+    co: components.co,
+  });
 
   return {
-    location: selectedLocation.name,
-    country: selectedLocation.country,
-    coordinates: {
-      latitude: data.coord.lat,
-      longitude: data.coord.lon,
+    location: {
+      name: selectedLocation.name,
+      country: selectedLocation.country,
+      state: selectedLocation.state,
+      coordinates: {
+        latitude: selectedLocation.latitude,
+        longitude: selectedLocation.longitude,
+      },
     },
-    temperature: data.main.temp,
-    feelsLike: data.main.feels_like,
-    humidity: data.main.humidity,
-    pressure: data.main.pressure,
-    visibility: data.visibility,
-    windSpeed: data.wind.speed,
-    windDirection: data.wind.deg,
-    cloudCover: data.clouds.all,
-    condition: data.weather?.[0]?.main || null,
-    description: data.weather?.[0]?.description || null,
-    observedAt: data.dt,
+
+    weather: {
+      temperature: weather.main.temp,
+      feelsLike: weather.main.feels_like,
+      humidity: weather.main.humidity,
+      pressure: weather.main.pressure,
+      visibility: weather.visibility,
+      windSpeed: weather.wind.speed,
+      windDirection: weather.wind.deg,
+      cloudCover: weather.clouds.all,
+      condition: weather.weather?.[0]?.main || null,
+      description: weather.weather?.[0]?.description || null,
+    },
+
+    airQuality: {
+      aqi: aqiResult.aqi,
+      category: aqiResult.category,
+      primaryPollutant: aqiResult.primaryPollutant,
+      pm2_5: components.pm2_5,
+      pm10: components.pm10,
+      co: components.co,
+      no2: components.no2,
+      o3: components.o3,
+      so2: components.so2,
+      subIndices: aqiResult.subIndices,
+    },
+
+    observedAt: pollution.dt,
   };
 }
 
 async function getAirQuality(location) {
   const selectedLocation = await getLocation(location);
-
-  if (!selectedLocation) {
-    throw new Error("Unsupported location");
-  }
 
   if (!process.env.OPENWEATHER_API_KEY) {
     throw new Error("OpenWeather API key is not configured");
@@ -66,7 +124,10 @@ async function getAirQuality(location) {
 
   url.searchParams.set("lat", selectedLocation.latitude);
   url.searchParams.set("lon", selectedLocation.longitude);
-  url.searchParams.set("appid", process.env.OPENWEATHER_API_KEY);
+  url.searchParams.set(
+    "appid",
+    process.env.OPENWEATHER_API_KEY
+  );
 
   const response = await fetch(url);
 
@@ -85,14 +146,7 @@ async function getAirQuality(location) {
     location: selectedLocation.name,
     country: selectedLocation.country,
     aqi: pollution.main.aqi,
-    components: {
-      pm2_5: pollution.components.pm2_5,
-      pm10: pollution.components.pm10,
-      co: pollution.components.co,
-      no2: pollution.components.no2,
-      o3: pollution.components.o3,
-      so2: pollution.components.so2,
-    },
+    components: pollution.components,
     observedAt: pollution.dt,
   };
 }
