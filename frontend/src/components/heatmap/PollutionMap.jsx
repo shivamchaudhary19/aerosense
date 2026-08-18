@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import {
   MapContainer,
   TileLayer,
@@ -7,12 +7,12 @@ import {
   useMap,
 } from "react-leaflet";
 
-
 function getAQIColor(aqi) {
   if (aqi <= 50) return "#35D07F";
   if (aqi <= 100) return "#9BC53D";
   if (aqi <= 150) return "#FFB547";
   if (aqi <= 200) return "#FF7A59";
+
   return "#FF5A5F";
 }
 
@@ -22,28 +22,98 @@ function MapRecenter({ location }) {
   useEffect(() => {
     if (!location) return;
 
-    map.setView([location.latitude, location.longitude], 12, {
-      animate: true,
-    });
+    map.setView(
+      [location.latitude, location.longitude],
+      12,
+      {
+        animate: true,
+      }
+    );
   }, [location, map]);
 
   return null;
 }
 
 function PollutionMap({
-  hotspots,
+  hotspots = [],
   selectedHotspot,
   onSelectHotspot,
 }) {
-  const mapCenter = {
-    latitude: 28.6139,
-    longitude: 77.36,
-  };
+
+  const stations = useMemo(() => {
+    return hotspots
+      .map((station, index) => {
+        const latitude = Number(
+          station?.coordinates?.latitude ??
+            station?.latitude
+        );
+
+        const longitude = Number(
+          station?.coordinates?.longitude ??
+            station?.longitude
+        );
+
+        const aqi = Number(station?.aqi);
+
+        if (
+          !Number.isFinite(latitude) ||
+          !Number.isFinite(longitude) ||
+          !Number.isFinite(aqi)
+        ) {
+          return null;
+        }
+
+        return {
+          id:
+            station.station ||
+            `station-${index}`,
+
+          name:
+            station.station ||
+            "Unknown station",
+
+          latitude,
+          longitude,
+
+          aqi,
+
+          category:
+            station.category ||
+            "Unknown",
+
+          primaryPollutant:
+            station.primaryPollutant ||
+            "Unknown",
+
+          lastUpdate:
+            station.lastUpdate ||
+            null,
+        };
+      })
+      .filter(Boolean);
+  }, [hotspots]);
+
+  const mapCenter = useMemo(() => {
+    if (stations.length > 0) {
+      return {
+        latitude: stations[0].latitude,
+        longitude: stations[0].longitude,
+      };
+    }
+
+    return {
+      latitude: 28.5706,
+      longitude: 77.3272,
+    };
+  }, [stations]);
 
   return (
-    <div className="relative h-[600px] overflow-hidden rounded-2xl border border-white/10">
+    <div className="relative h-[420px] w-full overflow-hidden rounded-2xl border border-white/10 sm:h-[500px] lg:h-[600px]">
       <MapContainer
-        center={[mapCenter.latitude, mapCenter.longitude]}
+        center={[
+          mapCenter.latitude,
+          mapCenter.longitude,
+        ]}
         zoom={12}
         scrollWheelZoom={true}
         className="h-full w-full"
@@ -55,38 +125,88 @@ function PollutionMap({
 
         <MapRecenter location={mapCenter} />
 
-        {hotspots.map((hotspot) => {
-          const isSelected = selectedHotspot?.id === hotspot.id;
-          const color = getAQIColor(hotspot.aqi);
+        {stations.map((station) => {
+          const isSelected =
+            selectedHotspot?.id === station.id;
+
+          const color =
+            getAQIColor(station.aqi);
 
           return (
             <CircleMarker
-              key={hotspot.id}
-              center={[hotspot.latitude, hotspot.longitude]}
-              radius={isSelected ? 14 : 10}
+              key={station.id}
+              center={[
+                station.latitude,
+                station.longitude,
+              ]}
+              radius={
+                isSelected ? 14 : 10
+              }
               pathOptions={{
                 color,
                 fillColor: color,
-                fillOpacity: isSelected ? 0.75 : 0.55,
-                weight: isSelected ? 3 : 2,
+                fillOpacity:
+                  isSelected
+                    ? 0.8
+                    : 0.55,
+                weight:
+                  isSelected ? 3 : 2,
               }}
               eventHandlers={{
-                click: () => onSelectHotspot(hotspot),
+                click: () =>
+                  onSelectHotspot?.(
+                    station
+                  ),
               }}
             >
               <Popup>
-                <div className="min-w-[150px]">
-                  <strong>{hotspot.name}</strong>
-                  <br />
-                  AQI: {hotspot.aqi}
-                  <br />
-                  {hotspot.category}
+                <div className="min-w-[180px] space-y-1 text-sm">
+                  <p className="font-semibold">
+                    {station.name}
+                  </p>
+
+                  <p>
+                    <strong>AQI:</strong>{" "}
+                    {station.aqi}
+                  </p>
+
+                  <p>
+                    <strong>Status:</strong>{" "}
+                    {station.category}
+                  </p>
+
+                  <p>
+                    <strong>Primary pollutant:</strong>{" "}
+                    {station.primaryPollutant}
+                  </p>
+
+                  {station.lastUpdate && (
+                    <p className="text-xs text-gray-500">
+                      Updated:{" "}
+                      {station.lastUpdate}
+                    </p>
+                  )}
                 </div>
               </Popup>
             </CircleMarker>
           );
         })}
       </MapContainer>
+
+      {/* Empty state */}
+      {stations.length === 0 && (
+        <div className="absolute inset-0 z-[1000] flex items-center justify-center bg-[#071014]/40 backdrop-blur-[2px]">
+          <div className="mx-4 rounded-xl border border-white/10 bg-[#101B20]/95 px-5 py-4 text-center">
+            <p className="text-sm font-medium text-[#F5F7F8]">
+              No monitoring station data
+            </p>
+
+            <p className="mt-1 text-xs text-[#64757d]">
+              CPCB station data is currently unavailable.
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
