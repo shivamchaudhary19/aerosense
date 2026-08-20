@@ -40,15 +40,17 @@ async function getCurrentEnvironment(location) {
   );
 
 
-  const [
-    weatherResponse,
-    airQualityResponse,
-    cpcb,
-  ] = await Promise.all([
-    fetch(weatherUrl),
-    fetch(airQualityUrl),
-    getCPCBData(location),
-  ]);
+ console.log("Fetching OpenWeather weather...");
+const weatherResponse = await fetch(weatherUrl);
+console.log("Weather API succeeded");
+
+console.log("Fetching OpenWeather air pollution...");
+const airQualityResponse = await fetch(airQualityUrl);
+console.log("Air pollution API succeeded");
+
+console.log("Fetching CPCB data...");
+const cpcb = await getCPCBData(location);
+console.log("CPCB API succeeded");
 
   if (!weatherResponse.ok) {
     throw new Error(
